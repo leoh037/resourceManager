@@ -69,7 +69,6 @@ int main(){
     
     for(int i = 0; i < numberOfInputs; i++){
         sscanf(input[i+1], "%s %d %d %d %d", activity, &taskNumber, &delay, &resourceType, &value);
-        printf("activity = %s, taskNumber = %d, delay = %d, resourceType = %d, value = %d\n", activity, taskNumber, delay, resourceType, value);
         taskIndex = taskNumber - 1;
         resourceIndex = resourceType - 1;
 
@@ -142,10 +141,10 @@ int main(){
 
 
 
-    // int numberOfActiveProcesses = numberOfTasks;
-    // int cycle = 0;
-    // while(numberOfActiveProcesses > 0){
+    int numberOfActiveProcesses = numberOfTasks;
+    int cycle = 0;
+    while(numberOfActiveProcesses > 0){
  
-    // }
+    }
 
 }
