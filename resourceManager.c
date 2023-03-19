@@ -18,6 +18,8 @@ int main(){
         "terminate 2 0 0 0"
     };
 
+    //this is a dummy comment
+
     // char * input[] = {
     //     "2 2 4 4",
     //     "initiate  1 0 1 4",
