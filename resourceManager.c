@@ -18,26 +18,6 @@ int main(){
         "terminate 2 0 0 0"
     };
 
-    //this is a dummy comment
-
-    // char * input[] = {
-    //     "2 2 4 4",
-    //     "initiate  1 0 1 4",
-    //     "initiate  1 0 2 4",
-    //     "request   1 0 1 1",
-    //     "request   1 0 2 1",
-    //     "release   1 0 1 1",
-    //     "release   1 0 1 1",
-    //     "terminate 1 0 0 0",
-    //     "initiate  2 0 1 4",
-    //     "initiate  2 0 2 4",
-    //     "request   2 0 1 1",
-    //     "request   2 0 2 1",
-    //     "release   2 0 1 1",
-    //     "release   2 0 2 1",
-    //     "terminate 2 0 0 0"
-    // };
-
     /////////////////////////////////////////////////////////////////////////////////
 
     printf("running resource manager...\n");
@@ -90,12 +70,10 @@ int main(){
     for(int i = 0; i < numberOfInputs; i++){
 
         sscanf(input[i+1], "%s %d %d %d %d", activity, &taskNumber, &delay, &resourceType, &value);
-        printf("activity = %s, taskNumber = %d, delay = %d, resourceType = %d, value = %d\n", activity, taskNumber, delay, resourceType, value);
         taskIndex = taskNumber - 1;
         resourceIndex = resourceType - 1;
 
         if(!strcmp(activity, "terminate")){
-            printf("%d: terminating task creation\n", taskNumber);
             tasks[taskIndex]->currentAction = tasks[taskIndex]->head;
             currentProcessExists = 0;
             currentTaskAborted = 0;
@@ -105,8 +83,6 @@ int main(){
             if(!strcmp(activity, "initiate")){
 
                 if(!currentProcessExists){
-                    
-                    printf("%d: initiating and building new task with resource %d\n", taskNumber, resourceType);
                     newTask = malloc(sizeof(Task));
                     *(tasks + taskIndex) = newTask;
 
@@ -128,16 +104,12 @@ int main(){
 
                 } else if(currentProcessExists && value > availableResources[resourceIndex]){
                     tasks[taskIndex]->abortState = 1;
-                } else if(currentProcessExists){
-                    printf("%d: subsequent initiate with resource %d\n", taskNumber, resourceType);
                 }
 
                 if(tasks[taskIndex]->abortState == 0){
-                    printf("%d: setting claim for resource %d\n", taskNumber, resourceType);
                     tasks[taskIndex]->claims[resourceIndex] = value; 
                 } else{
                     currentTaskAborted = 1;
-                    printf("%d: task aborted\n", taskNumber);
                 }
 
             } else {
@@ -145,10 +117,8 @@ int main(){
                 newAction = malloc(sizeof(Action));
 
                 if(!strcmp(activity, "request")){
-                    printf("%d: creating request action\n", taskNumber);
                     newAction->actionType = 0;
                 } else if (!strcmp(activity, "release")){
-                    printf("%d: creating release action\n", taskNumber);
                     newAction->actionType = 1;
                 }
                 newAction->delay = delay;
@@ -156,11 +126,9 @@ int main(){
                 newAction->resourceAmmount = value;
                 newAction->next = NULL;
                 if(tasks[taskIndex]->head == NULL){
-                    printf("%d: starting actions list\n", taskNumber);
                     tasks[taskIndex]->head = newAction;
                     tasks[taskIndex]->currentAction = newAction;
                 } else {
-                    printf("%d: extending actions list\n", taskNumber);
                     tasks[taskIndex]->currentAction->next = newAction;  //(*(*processes[taskIndex]).currentAction).next = newAction;
                     tasks[taskIndex]->currentAction = newAction;
                 }
