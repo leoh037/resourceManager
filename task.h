@@ -21,6 +21,7 @@ typedef struct task {
     int terminationState;  // 0 = active, 1 = terminated
     int terminationCycle;
     int abortState; // 0 = active, 1 = aborted
+    int unblockedThisCycle; // used to prevent tasks that were just unblocked from running twice in a cycle
     Action *head; // points to the first element of the actions list
     Action *currentAction; // points to the current action being performed by the task
     struct task *next;

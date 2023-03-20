@@ -4,6 +4,9 @@
 
 #include "blockedQueue.h"
 
+int requestIsSafe();
+void updateCycleResources(int *availableResources[], int *availableResourcesCycle[], int numberOfResources);
+
 int main(){
 
     char * input[] = {
@@ -23,8 +26,10 @@ int main(){
     printf("running resource manager...\n");
 
     int numberOfTasks;
+    int numberOfActiveTasks = numberOfTasks;
     int numberOfResources;
-    int *availableResources; // used to dynamially allocated an array to keep track of the number of available resources
+    int *reserveResources; // used to dynamially allocated an array to keep track of the number of resources in reserve
+    int *availableResources; // used to dynamially allocated an array to keep track of the number of resources available during a cycle
     int resourceIndex; // index of the resource's ammount in the availableResourcesArray (note that resource-type numbering starts from 1, but indexing starts from 0)
 
     int firstInputLenght = strlen(input[0]);
@@ -37,7 +42,7 @@ int main(){
             inputValue = atoi(&currentChar);
             if(i > 2){
             //*(availableResources + resourceIndex) = inputValue;
-            availableResources[resourceIndex] = inputValue;
+            reserveResources[resourceIndex] = inputValue;
             resourceIndex++;
             }
             else if(i == 0){
@@ -45,9 +50,26 @@ int main(){
             }
             else if(i == 2){
                 numberOfResources = inputValue;
+                reserveResources = malloc(numberOfResources * sizeof(int));
                 availableResources = malloc(numberOfResources * sizeof(int));
+                for(int i = 0; i < numberOfResources; i++){
+                    availableResources[i] = 0;
+                }
             }
         }
+    }
+
+    // creating a table to keep track of the allocation states for every resource (essentially an array of pointers to 2d arrays)
+    // for each resource, each table/2d array consisters of multiple rows (each row corresponding to a task), and 2 columns (column 1 holds the number of allocated resources for the task, 
+    // while column 2 holds the task's claim)
+    int *** resourceTable = malloc(numberOfResources * sizeof(int **));
+    int ** allocationState;
+    for(int i = 0; i < numberOfResources; i++){
+        if(i == 0){
+            allocationState = malloc(numberOfTasks * sizeof(int *));
+            resourceTable[i] = allocationState;
+        }
+        allocationState[i] = malloc(2 * sizeof(int));
     }
 
     Task **tasks = malloc(numberOfTasks * sizeof(Task*));   //will allocate a buffer big enough to hold n pointers to Process structs
@@ -85,7 +107,7 @@ int main(){
                     newTask = malloc(sizeof(Task));
                     *(tasks + taskIndex) = newTask;
 
-                    if(value <= availableResources[resourceIndex]){
+                    if(value <= reserveResources[resourceIndex]){
                         newTask->claims = malloc(numberOfResources * sizeof(int));
                         newTask->currentAllocation = malloc(numberOfResources * sizeof(int));
                         newTask->taskNumber = taskNumber;
@@ -95,13 +117,16 @@ int main(){
                         newTask->head = NULL;
                         newTask->currentAction = NULL;
                         newTask->next = NULL;
+                        for(int i = 0; i < numberOfResources; i++){
+                            newTask->currentAllocation[i] = 0;
+                        }
                     } else{
                         newTask->abortState = 1;
                     }
 
                     currentProcessExists = 1;
 
-                } else if(currentProcessExists && value > availableResources[resourceIndex]){
+                } else if(currentProcessExists && value > reserveResources[resourceIndex]){
                     tasks[taskIndex]->abortState = 1;
                 }
 
@@ -109,6 +134,7 @@ int main(){
                     tasks[taskIndex]->claims[resourceIndex] = value; 
                 } else{
                     currentTaskAborted = 1;
+                    numberOfActiveTasks--;
                 }
 
             } else {
@@ -138,13 +164,103 @@ int main(){
 
     printf("system ready\n");
 
+    //these 2 pointers are used to maintain a queue of blocked states
+    Task *head = NULL;
+    Task *tail = NULL;
+    int blockedProcesses;
 
+    Task *currentTask;
+    Action *currentAction;
+    int actionType;
+    int actionDelay;
+    int actionResourceType;
+    int actionResourceAmmount;
 
-
-    int numberOfActiveProcesses = numberOfTasks;
     int cycle = 0;
-    while(numberOfActiveProcesses > 0){
+    while(numberOfActiveTasks > 0){
+
+        updateCycleResources(reserveResources, availableResources, numberOfResources);
+
+        blockedProcesses = getSize(&head);
+
+        for(int i = 0; i < numberOfTasks; i++){
+            //handle any blocked tasks first
+            if(blockedProcesses > 0){
+                for(int i = 0; i < blockedProcesses; i++){
+
+                    currentTask = dequeue(&head);
+                    currentAction = currentTask->currentAction;
+                    actionResourceType = currentAction->resourceType;
+                    actionResourceAmmount = currentAction->resourceAmmount;
+
+                    if(requestIsSafe()){
+                        // increase the number of the given resource allocated to the task
+                        currentTask->currentAllocation[actionResourceType-1] += actionResourceAmmount;
+                        // decrease the number of the given resource available for this cycle
+                        availableResources[actionResourceType-1] -= actionResourceAmmount;
+                        currentAction = currentAction->next;
+                        currentTask->blockState = 0;
+                        currentTask->unblockedThisCycle = 1;
+                    } else{
+                        enqueue(&head, &tail, currentTask);
+                    }
+                }
+            }
+
+            currentTask = tasks[i];
+            currentAction = currentTask->currentAction;
+            actionType = currentAction->actionType;
+            actionResourceType = currentAction->resourceType;
+            actionResourceAmmount = currentAction->resourceAmmount;
+
+            if(currentTask->terminationState != 1 && currentTask->blockState != 1){
+
+                if(currentTask->unblockedThisCycle != 1){
+                    if(actionType == 0){
+
+                        if(requestIsSafe()){
+
+                            // increase the number of the given resource allocated to the task
+                            currentTask->currentAllocation[actionResourceType-1] += actionResourceAmmount;
+
+                            // decrease the number of the given resource available for this cycle
+                            availableResources[actionResourceType-1] -= actionResourceAmmount;
+                            currentAction = currentAction->next;
+
+                        } else{
+
+                            //block the task and add it to the queue of blocked processes
+                            enqueue(&head, &tail, currentTask);
+                            currentTask->blockState = 1;
+
+                        }
+                    } else if(actionType == 1){
+                        // decrease the number of the current resource allocated to the task
+                        currentTask->currentAllocation[actionResourceType-1] -= actionResourceAmmount;
+                        // increase the number of the given resource available
+                        reserveResources[actionResourceType-1] += actionResourceAmmount;
+                    }
+                } else{
+                    currentTask->unblockedThisCycle = 0;
+                }
+            }
+
+
+        }
  
     }
 
+}
+
+int requestIsSafe(){ //this method should pass as an argument the appropiate resource table, the number of requested units, and the number of free resources
+    return 1;
+}
+
+void updateCycleResources(int *reserveResources[], int *availableResources[], int numberOfResources){
+    int value;
+    for(int i = 0; i < numberOfResources; i++){
+        value = reserveResources[i];
+        availableResources[i] += value;
+        reserveResources[i] = 0;
+    }
 }
