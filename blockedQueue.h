@@ -28,17 +28,6 @@ void enqueue(Task **pHead, Task **pTail, Task *newNode) {
 }
 
 //remove a node from the front of the queue (head of the linked list)
-// void dequeue(Task **pHead){
-//     //only dequeue if the queue is not empty
-//     if(*pHead != NULL){
-//         Task *dequeued = *pHead;
-//         *pHead = (*pHead) -> next;
-//         dequeued->next = NULL;  // (*dequeued).next = NULL;
-//         //printf("removed process with id = %d from the queue\n", dequeued->process->pid);
-//     }
-// }
-
-//remove a node from the front of the queue (head of the linked list)
 Task * dequeue(Task **pHead){
     //only dequeue if the queue is not empty, otherwise returns null
     Task *dequeued = NULL;

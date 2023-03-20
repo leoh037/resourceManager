@@ -4,9 +4,9 @@
 
 #include "blockedQueue.h"
 
-void updateCycleResources(int *availableResources[], int *availableResourcesCycle[], int numberOfResources);
+void updateCycleResources(int *availableResources, int *availableResourcesCycle, int numberOfResources);
 void updateResourceTable(int *** resourceTable, int *** subtractTable, int numberOfResources, int numberOfTasks);
-int requestIsSafe(int ** array, int requestAmmount, int freeAmmount);
+int requestIsSafe(int ** array, int requestAmmount, int freeAmmount, int numberOfTasks);
 
 int main(){
 
@@ -190,14 +190,15 @@ int main(){
 
     int cycle = 0;
     while(numberOfActiveTasks > 0){
-
+        //updating the resources available for this cycle to account for any released resources during the previous cycle
         updateCycleResources(reserveResources, availableResources, numberOfResources);
-        //updating the resource allocation cycle to account for any released resouces in the past cycle
+        //updating the resource allocation table to account for any released resouces during the previous cycle
         updateResourceTable(resourceTable, subtractTable, numberOfResources, numberOfTasks);
 
         blockedProcesses = getSize(&head);
 
         for(int i = 0; i < numberOfTasks; i++){
+
             //handle any blocked tasks first
             if(blockedProcesses > 0){
                 for(int i = 0; i < blockedProcesses; i++){
@@ -209,10 +210,9 @@ int main(){
 
                     int ** array = resourceTable[actionResourceType - 1];
 
-                    if(requestIsSafe(array, actionResourceAmmount, availableResources[actionResourceType-1])){
+                    if(requestIsSafe(array, actionResourceAmmount, availableResources[actionResourceType-1], numberOfTasks)){
                         // increase the number of the given resource allocated to the task
-                        //currentTask->currentAllocation[actionResourceType-1] += actionResourceAmmount;
-                        resourceTable[actionResourceType-1][currentTask->taskNumber - 1][0] += actionResourceAmmount;
+                        resourceTable[actionResourceType-1][currentTask->taskNumber-1][0] += actionResourceAmmount;
                         // decrease the number of the given resource available for this cycle
                         availableResources[actionResourceType-1] -= actionResourceAmmount;
                         currentAction = currentAction->next;
@@ -237,10 +237,10 @@ int main(){
 
                         int ** array = resourceTable[actionResourceType - 1];
 
-                        if(requestIsSafe(array, actionResourceAmmount, availableResources[actionResourceType-1])){
+                        if(requestIsSafe(array, actionResourceAmmount, availableResources[actionResourceType-1], numberOfTasks)){
                             // increase the number of the given resource allocated to the task
                             //currentTask->currentAllocation[actionResourceType-1] += actionResourceAmmount;
-                            resourceTable[actionResourceType-1][currentTask->taskNumber - 1][0] += actionResourceAmmount;
+                            resourceTable[actionResourceType-1][currentTask->taskNumber-1][0] += actionResourceAmmount;
                             // decrease the number of the given resource available for this cycle
                             availableResources[actionResourceType-1] -= actionResourceAmmount;
                             currentAction = currentAction->next;
@@ -253,27 +253,36 @@ int main(){
                     } else if(actionType == 1){
                         // decrease the number of the current resource allocated to the task
                         //currentTask->currentAllocation[actionResourceType-1] -= actionResourceAmmount;
+
                         // increase the number of the given resource available
                         reserveResources[actionResourceType-1] += actionResourceAmmount;
-                        subtractTable[actionResourceType-1][currentTask->taskNumber - 1][0] += actionResourceAmmount;
+                        subtractTable[actionResourceType-1][currentTask->taskNumber-1][0] += actionResourceAmmount;
+                        currentAction = currentAction->next;
+
+                        if(currentAction == NULL){
+                            currentTask->terminationState = 1;
+                            currentTask->terminationCycle = cycle + 1;
+                            numberOfActiveTasks--;
+                        }
                     }
                 } else{
                     currentTask->unblockedThisCycle = 0;
                 }
             }
 
-
         }
- 
+
+        cycle++;
     }
+
+    //print stuff out here once the run has ended
 
 }
 
-void updateCycleResources(int *reserveResources[], int *availableResources[], int numberOfResources){
+void updateCycleResources(int *reserveResources, int *availableResources, int numberOfResources){
     int value;
     for(int i = 0; i < numberOfResources; i++){
-        value = reserveResources[i];
-        availableResources[i] += value;
+        availableResources[i] += reserveResources[i];
         reserveResources[i] = 0;
     }
 }
@@ -281,15 +290,39 @@ void updateCycleResources(int *reserveResources[], int *availableResources[], in
 void updateResourceTable(int *** resourceTable, int *** subtractTable, int numberOfResources, int numberOfTasks){
     for(int i = 0; i < numberOfResources; i++){
         for(int k = 0; k < numberOfTasks; k++){
-            resourceTable[i][k][0] -= subtractTable[i][k][0];
-            subtractTable[i][k][0] = 0;
+            if(subtractTable[i][k][0] != 0){
+                resourceTable[i][k][0] -= subtractTable[i][k][0];
+                subtractTable[i][k][0] = 0;
+            }
         }
     }
 }
 
-int requestIsSafe(int ** array, int requestAmmount, int freeAmmount){
+int requestIsSafe(int ** array, int requestAmmount, int freeAmmount, int numberOfTasks){
+
+    int ** allocated = malloc(numberOfTasks * sizeof(int *));
+    for(int i = 0; i < numberOfTasks; i++){
+        allocated[i] = malloc(2 * sizeof(int));
+        allocated[i][0] = array[i][0];
+        allocated[i][1] = 1;
+    }
+
+    int needed;
+    int total = numberOfTasks;
+
+    for(int i = 0; i < numberOfTasks; i++){
 
 
+        
+        needed = array[i][1] - allocated[i][0];
+        if (needed <= freeAmmount){
+            allocated[i][1] = 0;
+            freeAmmount += allocated[i][0];
+            total--;
+        }
+    }
+
+    
     
     return 1;
 }
